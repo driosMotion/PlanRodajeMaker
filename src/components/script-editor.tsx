@@ -303,8 +303,14 @@ export function ScriptEditor({ project, onProjectChange }: ScriptEditorProps) {
     onProjectChange({ ...project, language: newLang });
   };
 
-  const textColumns = project.columns.filter((c) => c.type !== "image");
-  const imageColumns = project.columns.filter((c) => c.type === "image");
+  const handleColumnResize = (colId: string, newWidth: number) => {
+    onProjectChange({
+      ...project,
+      columns: project.columns.map((c) =>
+        c.id === colId ? { ...c, minWidth: newWidth } : c
+      ),
+    });
+  };
 
   return (
     <div className="flex flex-col h-full">
@@ -401,6 +407,7 @@ export function ScriptEditor({ project, onProjectChange }: ScriptEditorProps) {
                       column={col}
                       onEdit={() => openEditColumn(col)}
                       onDelete={() => deleteColumn(col.id)}
+                      onResize={(width) => handleColumnResize(col.id, width)}
                       isActive={activeColId === col.id}
                     />
                   ))}
