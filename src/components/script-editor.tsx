@@ -384,6 +384,23 @@ export function ScriptEditor({ project, onProjectChange }: ScriptEditorProps) {
 
       {/* Main table area */}
       <div className="flex-1 overflow-auto border border-border rounded-lg mx-4 my-4">
+        <DndContext
+          sensors={colSensors}
+          collisionDetection={closestCenter}
+          onDragStart={(e) => setActiveColId(e.active.id as string)}
+          onDragEnd={handleColDragEnd}
+          accessibility={{
+            screenReaderInstructions: {
+              draggable: "",
+            },
+            announcements: {
+              onDragStart: () => "",
+              onDragOver: () => "",
+              onDragEnd: () => "",
+              onDragCancel: () => "",
+            },
+          }}
+        >
         <table className="w-full border-collapse">
           {/* Column Headers */}
           <thead className="sticky top-0 z-10">
@@ -391,12 +408,6 @@ export function ScriptEditor({ project, onProjectChange }: ScriptEditorProps) {
               <th className="p-2 w-12 bg-secondary">
                 <Columns3 className="h-4 w-4 text-muted-foreground mx-auto" />
               </th>
-              <DndContext
-                sensors={colSensors}
-                collisionDetection={closestCenter}
-                onDragStart={(e) => setActiveColId(e.active.id as string)}
-                onDragEnd={handleColDragEnd}
-              >
                 <SortableContext
                   items={project.columns.map((c) => c.id)}
                   strategy={horizontalListSortingStrategy}
@@ -412,7 +423,6 @@ export function ScriptEditor({ project, onProjectChange }: ScriptEditorProps) {
                     />
                   ))}
                 </SortableContext>
-              </DndContext>
 
               {/* Add Column Button */}
               <th className="p-2 w-16 bg-secondary">
@@ -479,12 +489,6 @@ export function ScriptEditor({ project, onProjectChange }: ScriptEditorProps) {
           </thead>
 
           {/* Rows */}
-          <DndContext
-            sensors={rowSensors}
-            collisionDetection={closestCenter}
-            onDragStart={(e) => setActiveRowId(e.active.id as string)}
-            onDragEnd={handleRowDragEnd}
-          >
             <SortableContext
               items={project.rows.map((r) => r.id)}
               strategy={verticalListSortingStrategy}
@@ -522,8 +526,18 @@ export function ScriptEditor({ project, onProjectChange }: ScriptEditorProps) {
                 )}
               </tbody>
             </SortableContext>
-          </DndContext>
         </table>
+        </DndContext>
+        <DndContext
+            sensors={rowSensors}
+            collisionDetection={closestCenter}
+            onDragStart={(e) => setActiveRowId(e.active.id as string)}
+            onDragEnd={handleRowDragEnd}
+            accessibility={{
+              screenReaderInstructions: { draggable: "" },
+              announcements: { onDragStart: () => "", onDragOver: () => "", onDragEnd: () => "", onDragCancel: () => "" },
+            }}
+          />
       </div>
 
       {/* Add Row Button */}
