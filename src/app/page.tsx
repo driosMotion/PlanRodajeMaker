@@ -9,6 +9,7 @@ const STORAGE_KEY = "script-studio-project";
 
 function loadFromStorage(): ProjectData | null {
   try {
+    if (typeof window === "undefined") return null;
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return null;
     return JSON.parse(raw) as ProjectData;
@@ -21,7 +22,7 @@ function saveToStorage(project: ProjectData) {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(project));
   } catch {
-    // storage full or unavailable — silently ignore
+    // Storage full — images too large. Silently skip to avoid disruption.
   }
 }
 
@@ -36,41 +37,26 @@ function createDefaultProject(): ProjectData {
 }
 
 export default function Home() {
-  const [project, setProject] = React.useState<ProjectData>(() => {
-    return loadFromStorage() || createDefaultProject();
-  });
+  const [ready, setReady] = React.useState(false);
+  const [project, setProject] = React.useState<ProjectData>(createDefaultProject());
 
-  const [isLoaded, setIsLoaded] = React.useState(false);
-
-  // Load from storage on mount (client-side only)
+  // On mount (client only), restore from localStorage
   React.useEffect(() => {
     const saved = loadFromStorage();
-    if (saved) {
-      setProject(saved);
-    }
-    setIsLoaded(true);
+    if (saved) setProject(saved);
+    setReady(true);
   }, []);
 
   // Debounced auto-save to localStorage on every change
-  const lastSaved = React.useRef<string>("");
+  const lastJson = React.useRef<string>("");
   React.useEffect(() => {
-    if (!isLoaded) return;
+    if (!ready) return;
     const json = JSON.stringify(project);
-    if (json === lastSaved.current) return;
-    lastSaved.current = json;
-    const timer = setTimeout(() => {
-      saveToStorage(project);
-    }, 500); // 500ms debounce
+    if (json === lastJson.current) return;
+    lastJson.current = json;
+    const timer = setTimeout(() => saveToStorage(project), 500);
     return () => clearTimeout(timer);
-  }, [project, isLoaded]);
-
-  if (!isLoaded) {
-    return (
-      <div className="min-h-full flex items-center justify-center text-muted-foreground">
-        Loading...
-      </div>
-    );
-  }
+  }, [project, ready]);
 
   return (
     <div className="min-h-full flex flex-col bg-background text-foreground">

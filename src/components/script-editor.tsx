@@ -261,7 +261,15 @@ export function ScriptEditor({ project, onProjectChange }: ScriptEditorProps) {
   const handleExportCSV = () => exportCSV(project);
   const handleExportPDF = () => exportPDF(project);
   const handleExportZIP = () => exportZIP(project);
-  const handleSave = () => saveProject(project);
+  const handleSave = () => {
+    saveProject(project);
+    // Also persist to localStorage
+    try {
+      localStorage.setItem("script-studio-project", JSON.stringify(project));
+    } catch {
+      alert("Project too large for browser storage (image data may be oversized). Use Save to download a .json file instead.");
+    }
+  };
 
   const handleLoad = () => {
     fileInputRef.current?.click();
