@@ -46,21 +46,29 @@ export function exportPDF(project: ProjectData): void {
     doc.text(`Language: ${project.language}`, 14, 28);
     doc.text(`Updated: ${project.updatedAt}`, 14, 34);
 
-    const headers = project.columns
-      .filter((c) => c.type !== "image")
-      .map((c) => c.name);
+    // Include all columns — image columns will show thumbnails
+    const allColumns = project.columns;
+    const imageColumnIndices: number[] = [];
+
+    const headers = allColumns.map((c, i) => {
+      if (c.type === "image") imageColumnIndices.push(i);
+      return c.name;
+    });
 
     const rows = project.rows.map((row) =>
-      project.columns
-        .filter((c) => c.type !== "image")
-        .map((col) => {
-          let val = row.values[col.id] || "";
-          if (col.type === "textarea") {
-            val = val.replace(/\n/g, " ");
-          }
-          return val;
-        })
+      allColumns.map((col) => {
+        if (col.type === "image") return row.imageNames?.[col.id] || "";
+        if (col.type === "textarea")
+          return (row.values[col.id] || "").replace(/\n/g, " ");
+        return row.values[col.id] || "";
+      })
     );
+
+    // Build columnStyles to give image columns a fixed height
+    const columnStyles: Record<string, any> = {};
+    imageColumnIndices.forEach((idx) => {
+      columnStyles[idx] = { cellWidth: 22, minCellHeight: 16 };
+    });
 
     autoTable(doc, {
       head: [headers],
@@ -68,7 +76,46 @@ export function exportPDF(project: ProjectData): void {
       startY: 40,
       styles: { fontSize: 7, cellPadding: 1.5 },
       headStyles: { fillColor: [41, 41, 41], textColor: 255 },
+      columnStyles,
       margin: { top: 40 },
+      didDrawCell: (data: any) => {
+        if (
+          data.section === "body" &&
+          imageColumnIndices.includes(data.column.index)
+        ) {
+          const rowIdx = data.row.index;
+          const colId = allColumns[data.column.index].id;
+          const rowData = project.rows[rowIdx];
+          const imgData = rowData?.imageData?.[colId];
+          if (!imgData) return;
+
+          const cell = data.cell;
+          const pad = 1;
+          const cw = cell.width - pad * 2;
+          const ch = cell.height - pad * 2;
+          if (cw <= 0 || ch <= 0) return;
+
+          try {
+            // Detect format from the data URL
+            const format = imgData.startsWith("data:image/png")
+              ? "PNG"
+              : imgData.startsWith("data:image/jpeg") ||
+                imgData.startsWith("data:image/jpg")
+              ? "JPEG"
+              : "PNG";
+            doc.addImage(
+              imgData,
+              format,
+              cell.x + pad,
+              cell.y + pad,
+              cw,
+              ch
+            );
+          } catch {
+            // image format unsupported by jsPDF — skip silently
+          }
+        }
+      },
     });
 
     doc.save(`${project.name.replace(/\s+/g, "_")}.pdf`);
