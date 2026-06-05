@@ -145,20 +145,83 @@ export function saveProject(project: ProjectData): void {
   saveAs(blob, `${project.name.replace(/\s+/g, "_")}.json`);
 }
 
-export function loadProject(
-  file: File
-): Promise<ProjectData> {
+async function loadJSON(file: File): Promise<ProjectData> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = (e) => {
       try {
         const data = JSON.parse(e.target?.result as string) as ProjectData;
         resolve(data);
-      } catch (err) {
-        reject(new Error("Invalid project file"));
+      } catch {
+        reject(new Error("Invalid JSON project file"));
       }
     };
     reader.onerror = () => reject(new Error("Failed to read file"));
     reader.readAsText(file);
   });
+}
+
+async function loadZIP(file: File): Promise<ProjectData> {
+  const zip = await JSZip.loadAsync(file);
+
+  // Read project.json
+  const projectFile = zip.file("project.json");
+  if (!projectFile) {
+    throw new Error("ZIP file is missing project.json");
+  }
+  const projectText = await projectFile.async("string");
+  const project = JSON.parse(projectText) as ProjectData;
+
+  // Read image_index.json (optional)
+  const indexFile = zip.file("image_index.json");
+  let imageIndex: Record<string, string> = {};
+  if (indexFile) {
+    const indexText = await indexFile.async("string");
+    imageIndex = JSON.parse(indexText);
+  }
+
+  // Read images folder and reconstruct imageData
+  const imageData: Record<string, Record<string, string>> = {};
+  const imageNames: Record<string, Record<string, string>> = {};
+
+  for (const [rowIdx, row] of project.rows.entries()) {
+    imageData[row.id] = {};
+    imageNames[row.id] = row.imageNames || {};
+
+    for (const colId of Object.keys(row.imageNames || {})) {
+      const key = `${rowIdx}_${colId}`;
+      const imgFileName = imageIndex[key];
+      if (!imgFileName) continue;
+
+      const imgFile = zip.file(`images/${imgFileName}`);
+      if (!imgFile) continue;
+
+      const blob = await imgFile.async("blob");
+      const dataUrl = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = () => reject(new Error("Failed to read image"));
+        reader.readAsDataURL(blob);
+      });
+
+      imageData[row.id][colId] = dataUrl;
+    }
+  }
+
+  // Attach reconstructed image data to rows
+  return {
+    ...project,
+    rows: project.rows.map((row) => ({
+      ...row,
+      imageData: imageData[row.id] || {},
+      imageNames: imageNames[row.id] || {},
+    })),
+  };
+}
+
+export function loadProject(file: File): Promise<ProjectData> {
+  if (file.name.endsWith(".zip")) {
+    return loadZIP(file);
+  }
+  return loadJSON(file);
 }

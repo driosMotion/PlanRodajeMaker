@@ -624,7 +624,7 @@ export function ScriptEditor({ project, onProjectChange }: ScriptEditorProps) {
       <input
         ref={fileInputRef}
         type="file"
-        accept=".json"
+        accept=".json,.zip"
         className="hidden"
         onChange={handleFileLoad}
       />
