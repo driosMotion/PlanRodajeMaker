@@ -1,6 +1,6 @@
-import { ProjectData, RowData, ColumnDef } from "./types";
-import jsPDF from "jspdf";
-import "jspdf-autotable";
+import { ProjectData } from "./types";
+import { jsPDF } from "jspdf";
+import { autoTable } from "jspdf-autotable";
 import JSZip from "jszip";
 import { saveAs } from "file-saver";
 
@@ -37,46 +37,45 @@ export function exportCSV(project: ProjectData): void {
 }
 
 export function exportPDF(project: ProjectData): void {
-  const doc = new jsPDF("landscape", "mm", "a4");
+  try {
+    const doc = new jsPDF("landscape", "mm", "a4");
 
-  doc.setFontSize(16);
-  doc.text(project.name, 14, 20);
-  doc.setFontSize(10);
-  doc.text(`Language: ${project.language}`, 14, 28);
-  doc.text(`Updated: ${project.updatedAt}`, 14, 34);
+    doc.setFontSize(16);
+    doc.text(project.name, 14, 20);
+    doc.setFontSize(10);
+    doc.text(`Language: ${project.language}`, 14, 28);
+    doc.text(`Updated: ${project.updatedAt}`, 14, 34);
 
-  const imageColumns = project.columns.filter((c) => c.type === "image");
-  const textColumns = project.columns.filter(
-    (c) => c.type !== "image" && c.type !== "textarea"
-  );
-  const textareaColumns = project.columns.filter((c) => c.type === "textarea");
-
-  const headers = project.columns
-    .filter((c) => c.type !== "image")
-    .map((c) => c.name);
-
-  const rows = project.rows.map((row) =>
-    project.columns
+    const headers = project.columns
       .filter((c) => c.type !== "image")
-      .map((col) => {
-        let val = row.values[col.id] || "";
-        if (col.type === "textarea") {
-          val = val.replace(/\n/g, " ");
-        }
-        return val;
-      })
-  );
+      .map((c) => c.name);
 
-  (doc as any).autoTable({
-    head: [headers],
-    body: rows,
-    startY: 40,
-    styles: { fontSize: 7, cellPadding: 1.5 },
-    headStyles: { fillColor: [41, 41, 41], textColor: 255 },
-    margin: { top: 40 },
-  });
+    const rows = project.rows.map((row) =>
+      project.columns
+        .filter((c) => c.type !== "image")
+        .map((col) => {
+          let val = row.values[col.id] || "";
+          if (col.type === "textarea") {
+            val = val.replace(/\n/g, " ");
+          }
+          return val;
+        })
+    );
 
-  doc.save(`${project.name.replace(/\s+/g, "_")}.pdf`);
+    autoTable(doc, {
+      head: [headers],
+      body: rows,
+      startY: 40,
+      styles: { fontSize: 7, cellPadding: 1.5 },
+      headStyles: { fillColor: [41, 41, 41], textColor: 255 },
+      margin: { top: 40 },
+    });
+
+    doc.save(`${project.name.replace(/\s+/g, "_")}.pdf`);
+  } catch (err: any) {
+    alert(`PDF export failed: ${err?.message || err}`);
+    console.error("PDF export error:", err);
+  }
 }
 
 export async function exportZIP(project: ProjectData): Promise<void> {
